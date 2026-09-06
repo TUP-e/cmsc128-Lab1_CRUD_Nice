@@ -1,2 +1,2 @@
-# CMSC128_Lab_WebApp
+# CMSC128_ToDo Lists WebApp
 To-Do Lists WebApp development
