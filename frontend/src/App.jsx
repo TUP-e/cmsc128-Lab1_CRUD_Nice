@@ -1,122 +1,173 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from "react";
+import { getTasks, createTask, updateTask, deleteTask, restoreTask } from "./api/tasks";
+import TaskForm from "./components/TaskForm";
+import TaskControls from "./components/TaskControls";
+import TaskList from "./components/TaskList";
+import "./App.css";
+
+const PRIORITY_ORDER = { High: 0, Med: 1, Low: 2 };
+const TAG_ORDER = { Personal: 0, School: 1, Others: 2 };
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingTask, setEditingTask] = useState(null);
+  const [undoData, setUndoData] = useState(null);
+  const [showDone, setShowDone] = useState(false);
+
+  // Filter/sort state
+  const [sortBy, setSortBy] = useState("created_at");
+  const [filterPriority, setFilterPriority] = useState("All");
+  const [filterTag, setFilterTag] = useState("All");
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  async function loadTasks() {
+    try {
+      setLoading(true);
+      const data = await getTasks();
+      setTasks(data);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load tasks. Check that the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAdd(taskData) {
+    try {
+      const newTask = await createTask(taskData);
+      setTasks((prev) => [newTask, ...prev]);
+      setError(null);
+    } catch (err) {
+      setError("Failed to add task.");
+    }
+  }
+
+  async function handleUpdate(taskId, updates) {
+    try {
+      const updatedTask = await updateTask(taskId, updates);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
+      setEditingTask(null);
+      setError(null);
+    } catch (err) {
+      setError("Failed to update task.");
+    }
+  }
+
+  function handleToggleDone(task) {
+    handleUpdate(task.id, { is_done: !task.is_done });
+  }
+
+  async function handleDelete(taskId) {
+    const taskToDelete = tasks.find((t) => t.id === taskId);
+    if (!taskToDelete) return;
+
+    try {
+      await deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+      if (undoData?.timeoutId) clearTimeout(undoData.timeoutId);
+
+      const timeoutId = setTimeout(() => {
+        setUndoData(null);
+      }, 15000);
+
+      setUndoData({ task: taskToDelete, timeoutId });
+      setError(null);
+    } catch (err) {
+      setError("Failed to delete task.");
+    }
+  }
+
+  async function handleUndo() {
+    if (!undoData) return;
+
+    try {
+      clearTimeout(undoData.timeoutId);
+      const restoredTask = await restoreTask(undoData.task.id);
+      setTasks((prev) => [restoredTask, ...prev]);
+      setUndoData(null);
+    } catch (err) {
+      setError("Failed to restore task.");
+    }
+  }
+
+  // Apply filters first
+  let visibleTasks = tasks.filter((t) => {
+    if (filterPriority !== "All" && t.priority !== filterPriority) return false;
+    if (filterTag !== "All" && t.tag !== filterTag) return false;
+    if (!showDone && t.is_done) return false;
+    return true;
+  });
+
+  // sort done tasks always sink to the bottom regardless of sort key,
+  visibleTasks = [...visibleTasks].sort((a, b) => {
+    if (a.is_done !== b.is_done) return a.is_done ? 1 : -1;
+
+    switch (sortBy) {
+      case "due_date":
+        return new Date(a.due_date) - new Date(b.due_date);
+      case "priority":
+        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      case "tag":
+        return TAG_ORDER[a.tag] - TAG_ORDER[b.tag];
+      case "created_at":
+      default:
+        return new Date(b.created_at) - new Date(a.created_at);
+    }
+  });
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="page">
+      <div className="app">
+        <header className="app-header">
+          <h1>To-Do List</h1>
+        </header>
 
-      <div className="ticks"></div>
+        {error && <div className="error-banner" role="alert" aria-live="polite">{error}</div>}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <TaskForm
+          onSubmit={editingTask ? (data) => handleUpdate(editingTask.id, data) : handleAdd}
+          editingTask={editingTask}
+          onCancelEdit={() => setEditingTask(null)}
+        />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <TaskControls
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          filterPriority={filterPriority}
+          onFilterPriorityChange={setFilterPriority}
+          filterTag={filterTag}
+          onFilterTagChange={setFilterTag}
+          showDone={showDone}
+          onShowDoneChange={setShowDone}
+        />
+
+        {loading ? (
+          <p>Loading tasks...</p>
+        ) : (
+          <TaskList
+            tasks={visibleTasks}
+            onEdit={setEditingTask}
+            onDelete={handleDelete}
+            onToggleDone={handleToggleDone}
+          />
+        )}
+      </div>
+
+      {undoData && (
+        <div className="undo-toast" role="status" aria-live="polite">
+          <span>Task "{undoData.task.title}" deleted.</span>
+          <button onClick={handleUndo}>Undo</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
