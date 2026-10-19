@@ -3,11 +3,13 @@ import { getTasks, createTask, updateTask, deleteTask, restoreTask } from "./api
 import TaskForm from "./components/TaskForm";
 import TaskControls from "./components/TaskControls";
 import TaskList from "./components/TaskList";
+import { useAuth } from "./context/AuthContext";
 
 const PRIORITY_ORDER = { High: 0, Med: 1, Low: 2 };
 const TAG_ORDER = { Personal: 0, School: 1, Others: 2 };
 
 function TodoApp() {
+  const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,7 +28,7 @@ function TodoApp() {
   async function loadTasks() {
     try {
       setLoading(true);
-      const data = await getTasks();
+      const data = await getTasks(token);
       setTasks(data);
       setError(null);
     } catch (err) {
@@ -38,7 +40,7 @@ function TodoApp() {
 
   async function handleAdd(taskData) {
     try {
-      const newTask = await createTask(taskData);
+      const newTask = await createTask(taskData, token);
       setTasks((prev) => [newTask, ...prev]);
       setError(null);
     } catch (err) {
@@ -48,7 +50,7 @@ function TodoApp() {
 
   async function handleUpdate(taskId, updates) {
     try {
-      const updatedTask = await updateTask(taskId, updates);
+      const updatedTask = await updateTask(taskId, updates, token);
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       setEditingTask(null);
       setError(null);
@@ -66,7 +68,7 @@ function TodoApp() {
     if (!taskToDelete) return;
 
     try {
-      await deleteTask(taskId);
+      await deleteTask(taskId, token);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
       if (undoData?.timeoutId) clearTimeout(undoData.timeoutId);
@@ -86,7 +88,7 @@ function TodoApp() {
     if (!undoData) return;
     try {
       clearTimeout(undoData.timeoutId);
-      const restoredTask = await restoreTask(undoData.task.id);
+      const restoredTask = await restoreTask(undoData.task.id, token);
       setTasks((prev) => [restoredTask, ...prev]);
       setUndoData(null);
     } catch (err) {
