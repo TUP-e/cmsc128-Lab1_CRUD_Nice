@@ -1,12 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import tasks
+from app.routes import tasks, auth
 
 app = FastAPI(title="To-Do List API")
-'''
- Allow the Vite dev server to call this API during development
- Central Hub of the backend that creates FastAPI
-'''
+
+# Allow the Vite dev server to call this API during development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -15,8 +13,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register task routes under /tasks
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 
 @app.get("/")

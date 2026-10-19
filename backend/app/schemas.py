@@ -45,6 +45,7 @@ class TaskUpdate(BaseModel):
 class TaskResponse(TaskBase):
     """Full task shape returned by the API."""
     id: str
+    user_id: str
     is_done: bool
     created_at: datetime
     deleted_at: Optional[datetime] = None

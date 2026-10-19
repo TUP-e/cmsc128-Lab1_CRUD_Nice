@@ -1,16 +1,19 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
 from app.config import supabase
+from app.dependencies import get_current_user
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse
 
 router = APIRouter()
 
 
 @router.post("/", response_model=TaskResponse)
-def create_task(task: TaskCreate):
-    """Insert a new task. created_at and is_done use DB defaults."""
+def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)):
+    """Insert a task owned by the authenticated user."""
     # model_dump converts enums to their string values automatically
     payload = task.model_dump(mode="json")
+    # Never accept the owner from the request body; derive it from the verified JWT.
+    payload["user_id"] = current_user["id"]
 
     result = supabase.table("tasks").insert(payload).execute()
 
@@ -21,7 +24,7 @@ def create_task(task: TaskCreate):
 
 
 @router.get("/", response_model=list[TaskResponse])
-def get_tasks():
+def get_tasks(current_user: dict = Depends(get_current_user)):
     """
     Return all active (non soft-deleted) tasks.
     Sorting and filtering are handled on the frontend since the
@@ -30,6 +33,7 @@ def get_tasks():
     result = (
         supabase.table("tasks")
         .select("*")
+        .eq("user_id", current_user["id"])
         .is_("deleted_at", "null")
         .order("created_at", desc=True)
         .execute()
@@ -38,9 +42,12 @@ def get_tasks():
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task(task_id: str):
-    """Fetch a single task by id."""
-    result = supabase.table("tasks").select("*").eq("id", task_id).execute()
+def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    """Fetch a task only when it belongs to the authenticated user."""
+    result = (
+        supabase.table("tasks").select("*")
+        .eq("id", task_id).eq("user_id", current_user["id"]).execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -49,7 +56,7 @@ def get_task(task_id: str):
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: str, task: TaskUpdate):
+def update_task(task_id: str, task: TaskUpdate, current_user: dict = Depends(get_current_user)):
     """
     Update one or more fields of an existing task.
     Only fields explicitly provided by the client are sent to Supabase.
@@ -59,7 +66,10 @@ def update_task(task_id: str, task: TaskUpdate):
     if not payload:
         raise HTTPException(status_code=400, detail="No fields provided to update")
 
-    result = supabase.table("tasks").update(payload).eq("id", task_id).execute()
+    result = (
+        supabase.table("tasks").update(payload)
+        .eq("id", task_id).eq("user_id", current_user["id"]).execute()
+    )
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -68,7 +78,7 @@ def update_task(task_id: str, task: TaskUpdate):
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: str):
+def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
     """
     Soft-delete a task by setting deleted_at to the current timestamp.
     The task is hidden from GET /tasks but remains in the database
@@ -80,6 +90,7 @@ def delete_task(task_id: str):
         supabase.table("tasks")
         .update({"deleted_at": now})
         .eq("id", task_id)
+        .eq("user_id", current_user["id"])
         .execute()
     )
 
@@ -90,7 +101,7 @@ def delete_task(task_id: str):
 
 
 @router.post("/{task_id}/restore", response_model=TaskResponse)
-def restore_task(task_id: str):
+def restore_task(task_id: str, current_user: dict = Depends(get_current_user)):
     """
     Reverse a soft-delete by clearing deleted_at.
     Called when the user clicks Undo on the delete toast.
@@ -99,6 +110,7 @@ def restore_task(task_id: str):
         supabase.table("tasks")
         .update({"deleted_at": None})
         .eq("id", task_id)
+        .eq("user_id", current_user["id"])
         .execute()
     )
 
