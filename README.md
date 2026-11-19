@@ -122,8 +122,8 @@ for running the frontend UI : </br>
 - Every task endpoint requires authentication. List queries filter by the current user's ID, and single-task reads, updates, deletes, and restores filter by both task ID and owner ID. A task owned by another user returns 404.
 
 ### Activity 3 integration and schema
-- The `act3-ubac` branch continues from the working `act2-accounts` codebase, where the CRUD and account features were already present together. The ownership work integrates them by using the authenticated account ID in the task API.
-- The checked-in history has no separate merge commit or recorded conflicts; the features were already present together when the Activity 3 ownership work began.
+- Activity 3 was developed on `act3-ubac`, continuing from `act2-accounts`, which already contained the Activity 1 CRUD code. The task API was then updated to use the authenticated account ID for ownership checks.
+- `main` (Activity 1) was merged into `act3-ubac` in merge commit `eef3a3f` (`cmsc128-Indiv-Act3-finalX`). Conflicts occurred in shared documentation, backend, and frontend files. They were resolved by keeping the Activity 3 versions where they included the authentication and UBAC work, while retaining `main`'s `.gitattributes` and line-ending updates for the task components.
 - `users` stores account records. `tasks.user_id` references `users.id`, so each task has one owner without copying account details into the task record.
 - Add the ownership column in the Supabase SQL Editor (this assumes `public.users.id` is UUID):
 
