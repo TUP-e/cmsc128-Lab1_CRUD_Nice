@@ -64,9 +64,19 @@ Create a .env file in the backend/ folder: </br>
 `SUPABASE_KEY=your-public-anon-key` </br>
 `JWT_SECRET=your-jwt-secret`
 
-Optional: </br>
+Optional frontend URLs (for local development): </br>
 `FRONTEND_URL=http://localhost:5173` </br>
-`DEMO_MODE=true`
+`CORS_ORIGINS=http://localhost:5173` </br>
+
+SMTP settings (required for password-reset email): </br>
+`SMTP_HOST=smtp.your-provider.com` </br>
+`SMTP_PORT=587` </br>
+`SMTP_USERNAME=your_smtp_username` </br>
+`SMTP_PASSWORD=your_smtp_password` </br>
+`SMTP_FROM_EMAIL=verified-sender@your-domain.com` </br>
+`SMTP_USE_SSL=false`
+
+Configure these SMTP values with credentials from your email provider and use a sender address verified with that provider. Port 587 uses STARTTLS; set `SMTP_USE_SSL=true` when your provider requires implicit TLS, commonly on port 465. For deployment, set `FRONTEND_URL` to the deployed frontend URL and `CORS_ORIGINS` to the allowed frontend origin(s), comma-separated if there is more than one. Keep SMTP credentials in the hosting provider's secret environment settings, not in Git. The app can start without SMTP settings, but password-reset delivery will fail until they are configured.
 
 
 ### Step 3: Frontend Setup (React + Vite)
@@ -102,11 +112,11 @@ for running the frontend UI : </br>
 ### Authentication
 - Register with email and password
 - Login with email and password
-- Forgot password / reset password demo flow (no email service is configured)
+- Forgot password / reset password flow sends an expiring reset link by email
 - Protected routes redirect unauthenticated users to `/login`
 - Session persisted with a JWT stored client-side
 
-> Note: The reset link is printed in the backend terminal. With `DEMO_MODE=true`, it is also returned in the API response for local testing.
+> Note: Password reset emails use the SMTP settings above. The reset token is stored as a hash, expires after 15 minutes, and is never printed or returned by the API.
 
 ### Task Management
 - Create tasks with title, due date, priority, and tag
@@ -122,8 +132,8 @@ for running the frontend UI : </br>
 - Every task endpoint requires authentication. List queries filter by the current user's ID, and single-task reads, updates, deletes, and restores filter by both task ID and owner ID. A task owned by another user returns 404.
 
 ### Activity 3 integration and schema
-- The `act3-ubac` branch continues from the working `act2-accounts` codebase, where the CRUD and account features were already present together. The ownership work integrates them by using the authenticated account ID in the task API.
-- The checked-in history has no separate merge commit or recorded conflicts; the features were already present together when the Activity 3 ownership work began.
+- Activity 3 was developed on `act3-ubac`, continuing from `act2-accounts`, which already contained the Activity 1 CRUD code. The task API was then updated to use the authenticated account ID for ownership checks.
+- `main` (Activity 1) was merged into `act3-ubac` in merge commit `eef3a3f` (`cmsc128-Indiv-Act3-finalX`). Conflicts occurred in shared documentation, backend, and frontend files. They were resolved by keeping the Activity 3 versions where they included the authentication and UBAC work, while retaining `main`'s `.gitattributes` and line-ending updates for the task components.
 - `users` stores account records. `tasks.user_id` references `users.id`, so each task has one owner without copying account details into the task record.
 - Add the ownership column in the Supabase SQL Editor (this assumes `public.users.id` is UUID):
 
@@ -158,7 +168,7 @@ for running the frontend UI : </br>
 | `GET` | `/auth/me` | Get the current user from a bearer token |
 | `PUT` | `/auth/profile` | Update the current user's profile |
 | `PUT` | `/auth/password` | Change the current user's password |
-| `POST` | `/auth/forgot-password` | Generate a reset link (demo flow; no email is sent) |
+| `POST` | `/auth/forgot-password` | Email a reset link when the address belongs to an account |
 | `POST` | `/auth/reset-password` | Reset password with token |
 | `GET` | `/tasks/` | Get the authenticated user's active tasks |
 | `GET` | `/tasks/{id}` | Get a task only if owned by the authenticated user |

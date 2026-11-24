@@ -35,7 +35,7 @@ class TaskUpdate(BaseModel):
     Fields allowed when updating a task.
     All optional so the client can send only the fields that changed.
     """
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    title: Optional[str] = Field(None, min_length=1, max_length=100)
     due_date: Optional[datetime] = None
     priority: Optional[Priority] = None
     tag: Optional[Tag] = None

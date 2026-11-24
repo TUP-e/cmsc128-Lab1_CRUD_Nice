@@ -1,10 +1,12 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from postgrest.exceptions import APIError
 
-from app.config import supabase, FRONTEND_URL, DEMO_MODE, RESET_TOKEN_EXPIRE_MINUTES
+from app.config import supabase, FRONTEND_URL, RESET_TOKEN_EXPIRE_MINUTES
 from app.dependencies import get_current_user
+from app.email_service import send_password_reset_email
 from app.schemas_auth import (
     RegisterRequest, LoginRequest, TokenResponse, UserResponse,
     ProfileUpdate, PasswordChange, ForgotPasswordRequest, ResetPasswordRequest,
@@ -15,6 +17,7 @@ from app.security import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 USER_FIELDS = "id, email, display_name, created_at"
 
@@ -114,10 +117,10 @@ def change_password(body: PasswordChange, current_user: dict = Depends(get_curre
 @router.post("/forgot-password")
 def forgot_password(body: ForgotPasswordRequest):
     """
-    Demo recovery flow: no email service, so the reset link is printed in the
-    backend terminal (and returned in the response when DEMO_MODE=true).
+    Send a one-time reset link by email. The same response is returned whether
+    or not the supplied email belongs to an account.
     """
-    generic = {"message": "If that email is registered, a reset link has been generated."}
+    generic = {"message": "If that email is registered, password reset instructions will be sent."}
 
     result = supabase.table("users").select("id").eq("email", body.email.lower()).execute()
     if not result.data:
@@ -126,16 +129,23 @@ def forgot_password(body: ForgotPasswordRequest):
     raw_token, token_hash = generate_reset_token()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
 
+    user_id = result.data[0]["id"]
     supabase.table("users").update({
         "reset_token_hash": token_hash,
         "reset_token_expires_at": expires_at.isoformat(),
-    }).eq("id", result.data[0]["id"]).execute()
+    }).eq("id", user_id).execute()
 
-    link = f"{FRONTEND_URL}/reset-password?token={raw_token}"
-    print(f"[DEMO] Password reset link for {body.email}: {link}")
+    link = f"{FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
+    try:
+        send_password_reset_email(body.email, link)
+    except Exception:
+        # Never log the reset URL or raw token. Invalidate the token if delivery failed.
+        logger.exception("Password reset email delivery failed for user_id=%s", user_id)
+        supabase.table("users").update({
+            "reset_token_hash": None,
+            "reset_token_expires_at": None,
+        }).eq("id", user_id).execute()
 
-    if DEMO_MODE:
-        return {**generic, "demo_reset_link": link}
     return generic
 
 
