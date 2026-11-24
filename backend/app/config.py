@@ -10,9 +10,18 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 JWT_SECRET = os.getenv("JWT_SECRET")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", FRONTEND_URL).split(",")
+    if origin.strip()
+]
 
-# When true, the reset link is also returned in the API response (local demo only)
-DEMO_MODE = os.getenv("DEMO_MODE", "true").lower() == "true"
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL")
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() == "true"
 
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # sessions last 24hours
