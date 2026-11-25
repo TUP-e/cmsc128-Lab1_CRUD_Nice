@@ -15,17 +15,56 @@ function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+
+    const cleanName = displayName.trim();
+    const cleanEmail = email.trim();
+    if (!cleanName) {
+      setError("Enter your display name.");
+      return;
+    }
+    if (cleanName.length > 50) {
+      setError("Keep your display name to 50 characters or fewer.");
+      return;
+    }
+    if (!cleanEmail) {
+      setError("Enter your email address.");
+      return;
+    }
+    if (e.currentTarget.elements.email.validity.typeMismatch) {
+      setError("Enter a valid email address, like name@example.com.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Choose a password with at least 8 characters.");
+      return;
+    }
+    if (password.length > 64) {
+      setError("Keep your password to 64 characters or fewer.");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError("Add at least one letter and one number to your password.");
+      return;
+    }
+    if (!confirmPassword) {
+      setError("Confirm your password.");
+      return;
+    }
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError("Those passwords don't match. Try again.");
       return;
     }
 
     setSubmitting(true);
     try {
-      await register(email.trim(), displayName.trim(), password);
+      await register(cleanEmail, cleanName, password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message === "An account with this email already exists."
+          ? "That email already has an account. Try logging in instead."
+          : err.message
+      );
     } finally {
       setSubmitting(false);
     }
