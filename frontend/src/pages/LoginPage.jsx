@@ -13,12 +13,31 @@ function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setError("Enter your email address.");
+      return;
+    }
+    if (e.currentTarget.elements.email.validity.typeMismatch) {
+      setError("Enter a valid email address, like name@example.com.");
+      return;
+    }
+    if (!password) {
+      setError("Enter your password.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(cleanEmail, password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message === "Invalid email or password."
+          ? "That email and password don't match. Check them and try again."
+          : err.message
+      );
     } finally {
       setSubmitting(false);
     }
