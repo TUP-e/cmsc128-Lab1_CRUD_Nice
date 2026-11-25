@@ -6,6 +6,7 @@ function RegisterPage() {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const { register } = useAuth();
@@ -14,6 +15,11 @@ function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await register(email.trim(), displayName.trim(), password);
@@ -67,6 +73,18 @@ function RegisterPage() {
           required
         />
         <p className="field-hint">At least 8 characters, with one letter and one number.</p>
+
+        <label htmlFor="reg-confirm-password">Confirm password</label>
+        <input
+          id="reg-confirm-password"
+          type="password"
+          name="confirm-password"
+          autoComplete="new-password"
+          spellCheck={false}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+        />
 
         <button type="submit" disabled={submitting}>
           {submitting ? "Creating account…" : "Sign Up"}
