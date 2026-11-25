@@ -8,7 +8,15 @@ const API_URL = import.meta.env.VITE_API_URL;
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.detail || "Something went wrong.");
+    const detail = data.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((item) => item?.msg).filter(Boolean).join(" ")
+          : detail?.msg || detail?.message;
+
+    throw new Error(message || "Something went wrong.");
   }
   return data;
 }
